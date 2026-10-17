@@ -35,6 +35,7 @@
     var renderedCount = 0;
     var scrollObserver = null;
     var isLoadingMore = false;
+    var bound = false;
 
     function list(value) {
         if (!value) return [];
@@ -277,7 +278,7 @@
             '<aside class="filters" data-filters aria-label="Product filters">' +
             '<div class="filters-mobile-head">' +
             '<span class="drawer-title">Filters</span>' +
-            '<button class="icon-btn" type="button" data-action="toggle-filters" aria-label="Close filters">' +
+            '<button class="icon-btn" type="button" data-action="close-filters" aria-label="Close filters">' +
             NC.ui.icon('i-close') + '</button>' +
             '</div>' +
             '<div class="filter-group">' +
@@ -617,7 +618,49 @@
         paint(query);
     }
 
+    function openFilters() {
+        var filters = (els && els.filters && els.filters.isConnected) ? els.filters : document.querySelector('[data-filters]');
+        if (!filters) return;
+        filters.classList.add('open');
+        var scrim = document.querySelector('[data-scrim]');
+        if (scrim) {
+            scrim.hidden = false;
+            requestAnimationFrame(function () { scrim.classList.add('show'); });
+        }
+        document.body.classList.add('no-scroll');
+    }
+
+    function closeFilters() {
+        var filters = (els && els.filters && els.filters.isConnected) ? els.filters : document.querySelector('[data-filters]');
+        if (filters) {
+            filters.classList.remove('open');
+        }
+        var scrim = document.querySelector('[data-scrim]');
+        if (scrim) {
+            scrim.classList.remove('show');
+            setTimeout(function () {
+                if (!document.querySelector('.drawer.open') && !document.querySelector('[data-filters].open')) {
+                    scrim.hidden = true;
+                }
+            }, 200);
+        }
+        document.body.classList.remove('no-scroll');
+    }
+
+    function toggleFilters() {
+        var filters = (els && els.filters && els.filters.isConnected) ? els.filters : document.querySelector('[data-filters]');
+        if (!filters) return;
+        if (filters.classList.contains('open')) {
+            closeFilters();
+        } else {
+            openFilters();
+        }
+    }
+
     function bind(view) {
+        if (bound) return;
+        bound = true;
+
         view.addEventListener('click', function (e) {
             var actionEl = e.target.closest('[data-action]');
             if (!actionEl) return;
@@ -630,18 +673,12 @@
             }
 
             if (action === 'toggle-filters') {
-                var isOpen = els.filters.classList.toggle('open');
-                var scrim = document.querySelector('[data-scrim]');
-                if (scrim) {
-                    scrim.hidden = !isOpen;
-                    if (isOpen) {
-                        requestAnimationFrame(function () { scrim.classList.add('show'); });
-                        document.body.classList.add('no-scroll');
-                    } else {
-                        scrim.classList.remove('show');
-                        document.body.classList.remove('no-scroll');
-                    }
-                }
+                toggleFilters();
+                return;
+            }
+
+            if (action === 'close-filters') {
+                closeFilters();
                 return;
             }
 
@@ -651,8 +688,10 @@
             }
 
             if (action === 'remove-filter') {
-                var patch = JSON.parse(actionEl.getAttribute('data-patch'));
-                NC.router.setQuery(patch);
+                try {
+                    var patch = JSON.parse(actionEl.getAttribute('data-patch'));
+                    NC.router.setQuery(patch);
+                } catch (err) { }
                 return;
             }
 
@@ -664,6 +703,7 @@
         });
 
         var onScrollCheck = function () {
+            if (NC.router.current().path !== '/') return;
             if (isLoadingMore || !els.results || renderedCount >= currentFiltered.length) return;
             var sentinel = els.results.querySelector('[data-scroll-sentinel]:not([hidden])');
             if (!sentinel) return;
@@ -674,6 +714,12 @@
         };
 
         window.addEventListener('scroll', onScrollCheck, { passive: true });
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth >= 900) {
+                closeFilters();
+            }
+        });
 
         view.addEventListener('change', function (e) {
             var input = e.target.closest('[data-filter]');
@@ -710,10 +756,19 @@
     }
 
 NC.views = NC.views || {};
-NC.views.home = { render: render, filters: applyFilters, sort: applySort, buckets: PRICE_BUCKETS };
+NC.views.home = {
+    render: render,
+    filters: applyFilters,
+    sort: applySort,
+    buckets: PRICE_BUCKETS,
+    openFilters: openFilters,
+    closeFilters: closeFilters,
+    toggleFilters: toggleFilters
+};
 NC.router.add('/', render);
 NC.router.on(function (parsed) {
     if (parsed.path !== '/') {
+        closeFilters();
         stopHero();
         if (scrollObserver) {
             scrollObserver.disconnect();

@@ -192,6 +192,12 @@ h4 {
     flex: none;
 }
 
+.icon-sm {
+    width: 16px;
+    height: 16px;
+    flex: none;
+}
+
 .shell {
     width: 100%;
     max-width: var(--shell);
@@ -249,9 +255,11 @@ h4 {
     transform: scale(.97);
 }
 
-.btn .icon {
+.btn .icon,
+.btn .icon-sm {
     width: 18px;
     height: 18px;
+    flex-shrink: 0;
 }
 
 .btn-primary {
@@ -2443,7 +2451,7 @@ a.footer-contact-item:hover {
     width: 18px;
     height: 18px;
     border: 2.5px solid var(--border-strong);
-    border-top-color: var(--primary);
+    border-top-color: var(--brand);
     border-radius: 50%;
     animation: gridSpin 0.75s linear infinite;
     flex-shrink: 0;
@@ -2463,6 +2471,7 @@ a.footer-contact-item:hover {
     text-align: center;
     border-top: 1px dashed var(--border-strong);
     width: 100%;
+    max-width: 100%;
 }
 
 .grid-scroll-end p {
@@ -2475,7 +2484,19 @@ a.footer-contact-item:hover {
 .grid-scroll-end .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--sp-2);
+    max-width: 100%;
+}
+
+.grid-scroll-end .btn .icon,
+.grid-scroll-end .btn .icon-sm,
+.grid-scroll-end .btn svg {
+    width: 16px;
+    height: 16px;
+    max-width: 16px;
+    max-height: 16px;
+    flex-shrink: 0;
 }
 
 /* ---------- toolbar / filters ---------- */
@@ -2483,6 +2504,13 @@ a.footer-contact-item:hover {
 .catalog-layout {
     display: grid;
     gap: var(--sp-5);
+    min-width: 0;
+}
+
+.catalog-layout > div,
+[data-results] {
+    min-width: 0;
+    width: 100%;
 }
 
 .toolbar {

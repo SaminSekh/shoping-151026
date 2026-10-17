@@ -28,7 +28,9 @@
     }
 
     function icon(id, cls) {
-        return '<svg class="' + (cls || 'icon') + '" aria-hidden="true"><use href="#' + id + '"></use></svg>';
+        var hasIcon = cls && /(^|\s)icon(\s|$)/.test(cls);
+        var className = cls ? (hasIcon ? cls : ('icon ' + cls)) : 'icon';
+        return '<svg class="' + className + '" aria-hidden="true"><use href="#' + id + '"></use></svg>';
     }
 
     function imgError(img) {

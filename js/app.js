@@ -414,7 +414,7 @@
         if (!modal || !modal.hidden) return;
         if (isStandalone()) return;
         NC.ui.closeDrawer();
-        var name = (NC.settings && NC.settings.storeName) || 'NovaCart';
+        var name = (NC.settings && NC.settings.storeName) || '';
         var titleEl = modal.querySelector('.play-app-name');
         if (titleEl) titleEl.textContent = name;
         modal.hidden = false;

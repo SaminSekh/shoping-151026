@@ -1,4 +1,4 @@
-const VERSION = 'v1.23.2';
+const VERSION = 'v1.23.5';
 const SHELL_CACHE = `novacart-shell-${VERSION}`;
 const ASSET_CACHE = `novacart-assets-${VERSION}`;
 const IMAGE_CACHE = `novacart-images-${VERSION}`;

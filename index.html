@@ -12,8 +12,7 @@
     <link rel="apple-touch-icon" href="assets/icon-192.png">
     <link id="app-manifest" rel="manifest" href="manifest.json">
 
-    <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#0b0f19" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#4f46e5">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -40,8 +39,10 @@
         (function () {
             try {
                 var saved = localStorage.getItem('novacart_theme');
-                var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+                var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
                 document.documentElement.setAttribute('data-theme', theme);
+                var meta = document.querySelector('meta[name="theme-color"]');
+                if (meta && theme === 'dark') meta.setAttribute('content', '#0b0f19');
             } catch (e) { }
         })();
     </script>
@@ -277,9 +278,9 @@
                 </svg>
             </button>
 
-            <a class="brand" href="#/" aria-label="Home">
-                <span class="brand-mark" data-brand-logo aria-hidden="true"></span>
-                <span class="brand-name" data-brand-name></span>
+            <a class="brand" href="#/" aria-label="NovaCart home">
+                <span class="brand-mark" data-brand-logo aria-hidden="true">N</span>
+                <span class="brand-name" data-brand-name>Nova<em>Cart</em></span>
             </a>
 
             <div class="header-actions">
@@ -401,7 +402,7 @@
                             onerror="this.src='assets/icon-192.png'">
                     </span>
                     <span class="pwa-install-info">
-                        <strong data-pwa-app-name></strong>
+                        <strong data-pwa-app-name>Install APK</strong>
                         <small>Fast, offline &amp; 1-tap shopping</small>
                     </span>
                     <span class="pwa-install-badge">
@@ -459,8 +460,8 @@
         <div class="shell footer-grid">
             <div>
                 <a class="brand" href="#/">
-                    <span class="brand-mark" data-brand-logo aria-hidden="true"></span>
-                    <span class="brand-name" data-brand-name></span>
+                    <span class="brand-mark" data-brand-logo aria-hidden="true">N</span>
+                    <span class="brand-name" data-brand-name>Nova<em>Cart</em></span>
                 </a>
                 <p class="footer-blurb" data-store-blurb>A modern shopping experience built for speed. Browse curated
                     products across every category, with transparent pricing and delivery you can track.</p>
@@ -483,7 +484,7 @@
             </div>
         </div>
         <div class="shell footer-base">
-            <p>&copy; <span data-year></span> <span data-store-name></span>. All rights reserved.</p>
+            <p>&copy; <span data-year></span> DolphinMore. All rights reserved.</p>
             <p class="footer-offline" data-offline-hint hidden>
                 <svg class="icon" aria-hidden="true">
                     <use href="#i-wifi-off"></use>
@@ -559,8 +560,8 @@
                             onerror="this.src='assets/icon-192.png'">
                     </span>
                     <div class="play-head-info">
-                        <h2 class="play-app-name" id="installApkTitle" data-pwa-install-title>Install app</h2>
-                        <p class="play-dev" data-pwa-dev-name></p>
+                        <h2 class="play-app-name" id="installApkTitle">Install</h2>
+                        <p class="play-dev" data-pwa-dev-name> Official • Shopping</p>
                     </div>
                 </header>
 
@@ -585,7 +586,9 @@
 
                 <div class="play-install-wrap">
                     <button class="play-install install-go" type="button" data-action="confirm-install">
-                        <svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>
+                        <svg class="icon" aria-hidden="true">
+                            <use href="#i-download"></use>
+                        </svg>
                         <span>Install</span>
                     </button>
                 </div>
@@ -612,15 +615,21 @@
                         </div>
                         <div class="play-bars">
                             <div class="play-bar"><span>5</span>
-                                <span class="play-bar-track"><span class="play-bar-fill" style="width:88%"></span></span></div>
+                                <span class="play-bar-track"><span class="play-bar-fill"
+                                        style="width:88%"></span></span>
+                            </div>
                             <div class="play-bar"><span>4</span>
-                                <span class="play-bar-track"><span class="play-bar-fill" style="width:9%"></span></span></div>
+                                <span class="play-bar-track"><span class="play-bar-fill" style="width:9%"></span></span>
+                            </div>
                             <div class="play-bar"><span>3</span>
-                                <span class="play-bar-track"><span class="play-bar-fill" style="width:2%"></span></span></div>
+                                <span class="play-bar-track"><span class="play-bar-fill" style="width:2%"></span></span>
+                            </div>
                             <div class="play-bar"><span>2</span>
-                                <span class="play-bar-track"><span class="play-bar-fill" style="width:1%"></span></span></div>
+                                <span class="play-bar-track"><span class="play-bar-fill" style="width:1%"></span></span>
+                            </div>
                             <div class="play-bar"><span>1</span>
-                                <span class="play-bar-track"><span class="play-bar-fill" style="width:1%"></span></span></div>
+                                <span class="play-bar-track"><span class="play-bar-fill" style="width:1%"></span></span>
+                            </div>
                         </div>
                     </div>
                     <ul class="play-reviews">
@@ -628,7 +637,8 @@
                             <span class="play-review-avatar" style="background:#01875f">A</span>
                             <div class="play-review-body">
                                 <div class="play-review-top"><b>Aarav S.</b>
-                                    <span class="play-stars" style="--fill:100%" aria-hidden="true"></span></div>
+                                    <span class="play-stars" style="--fill:100%" aria-hidden="true"></span>
+                                </div>
                                 <p>Super smooth and quick. Checkout is faster than the website and it barely takes
                                     any space on my phone.</p>
                                 <small>2 days ago · Helpful (24)</small>
@@ -638,7 +648,8 @@
                             <span class="play-review-avatar" style="background:#4f46e5">P</span>
                             <div class="play-review-body">
                                 <div class="play-review-top"><b>Priya M.</b>
-                                    <span class="play-stars" style="--fill:100%" aria-hidden="true"></span></div>
+                                    <span class="play-stars" style="--fill:100%" aria-hidden="true"></span>
+                                </div>
                                 <p>Love that it works offline. I can browse freely and my orders show up
                                     instantly. Recommended!</p>
                                 <small>1 week ago · Helpful (17)</small>
@@ -648,7 +659,8 @@
                             <span class="play-review-avatar" style="background:#f59e0b">R</span>
                             <div class="play-review-body">
                                 <div class="play-review-top"><b>Rahul K.</b>
-                                    <span class="play-stars" style="--fill:80%" aria-hidden="true"></span></div>
+                                    <span class="play-stars" style="--fill:80%" aria-hidden="true"></span>
+                                </div>
                                 <p>Under 1 MB and it installs in seconds. The delivery tracking is a nice touch.</p>
                                 <small>2 weeks ago · Helpful (9)</small>
                             </div>
