@@ -573,14 +573,14 @@
         return colors.map(function (c) {
             var name = c[0] || '';
             var hex = c[1] || '';
-            var image = c[2] || '';
+            var images = Array.isArray(c[2]) ? c[2].join(',') : (c[2] || '');
             var sizes = (c[3] || []).join(',');
             var qty = (c[4] == null) ? '' : c[4];
             var bySize = '';
             if (c[5] && typeof c[5] === 'object') {
                 bySize = Object.keys(c[5]).map(function (k) { return k + '=' + c[5][k]; }).join(',');
             }
-            return [name, hex, image, sizes, qty, bySize].join('|');
+            return [name, hex, images, sizes, qty, bySize].join('|');
         }).join(';');
     }
 
@@ -593,7 +593,8 @@
             var name = (parts[0] || '').trim();
             if (!name) return null;
             var hex = (parts[1] || '').trim() || '#cccccc';
-            var image = (parts[2] || '').trim();
+            var imgRaw = (parts[2] || '').trim();
+            var images = imgRaw ? imgRaw.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [];
             var sizes = (parts[3] || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
             var qtyRaw = (parts[4] || '').trim();
             var qty = qtyRaw === '' ? null : Math.max(0, parseInt(qtyRaw, 10) || 0);
@@ -609,7 +610,7 @@
                 });
                 if (!Object.keys(bySize).length) bySize = null;
             }
-            return [name, hex, image, sizes, qty, bySize];
+            return [name, hex, images, sizes, qty, bySize];
         }).filter(Boolean);
     }
 
@@ -2633,9 +2634,10 @@
             return '<div class="stock-group' + (map && sizes.length ? ' has-sizes' : '') + '">' +
                 '<div class="stock-row stock-head">' +
                 '<span class="stock-visual">' +
-                (c[2]
-                    ? '<img class="stock-thumb" src="' + esc(c[2]) + '" alt="" loading="lazy" onerror="NC.data && NC.data.placeholder ? (this.src=\'' + NC.data.placeholder + '\') : (this.style.visibility=\'hidden\')">'
-                    : '') +
+                (function () {
+                    var thumb = Array.isArray(c[2]) ? (c[2][0] || '') : (c[2] || '');
+                    return thumb ? '<img class="stock-thumb" src="' + esc(thumb) + '" alt="" loading="lazy" onerror="NC.data && NC.data.placeholder ? (this.src=\'' + NC.data.placeholder + '\') : (this.style.visibility=\'hidden\')">' : '';
+                })() +
                 '<span class="stock-swatch" style="background:' + esc(c[1] || '#ccc') + '"></span>' +
                 '</span>' +
                 '<span class="stock-name">' + esc(c[0] || 'Default') + '</span>' +
@@ -2813,16 +2815,23 @@
         var row = document.createElement('div');
         row.className = 'variant-row';
         row.innerHTML =
+            '<div class="v-images-wrap">' +
+            '<div class="v-images-top">' +
+            '<span class="v-images-title">Variant images</span>' +
+            '<div class="v-images-btns">' +
+            '<button class="btn btn-ghost btn-xs v-add-img" type="button" title="Add another image URL">' +
+            icon('ai-plus') + ' Add image</button>' +
+            '<button class="btn btn-ghost btn-xs v-upload-multi" type="button" title="Upload one or multiple images">' +
+            icon('ai-upload') + ' Upload</button>' +
+            '<input type="file" accept="image/*" multiple hidden class="v-file-multi">' +
+            '</div>' +
+            '</div>' +
+            '<div class="v-images-list"></div>' +
+            '</div>' +
             '<input class="v-color" type="color" value="' + esc(color[1] || '#4f46e5') + '" aria-label="Color swatch">' +
             '<input class="input v-name" type="text" placeholder="Color name" value="' + esc(color[0] || '') + '">' +
             '<input class="input v-hex" type="text" placeholder="#hex" value="' + esc(color[1] || '') + '">' +
             '<button class="icon-mini danger v-remove" type="button" aria-label="Remove color">' + icon('ai-trash') + '</button>' +
-            '<div class="v-image-wrap">' +
-            '<img class="v-preview" alt="" loading="lazy">' +
-            '<input class="input v-image" type="text" placeholder="Variant image URL (optional) — shown when this colour is picked" value="' + esc(color[2] || '') + '">' +
-            '<button class="icon-mini v-upload" type="button" aria-label="Upload variant image">' + icon('ai-upload') + '</button>' +
-            '<input type="file" accept="image/*" hidden>' +
-            '</div>' +
             '<input class="input v-sizes" type="text" placeholder="Sizes for this colour, comma separated (e.g. S, M, L) — leave blank to use the product sizes" value="' + esc(Array.isArray(color[3]) ? color[3].join(', ') : (color[3] || '')) + '">' +
             '<div class="v-qty-wrap"></div>';
 
@@ -2880,41 +2889,134 @@
         name.addEventListener('input', function () { userNamed = name.value.trim() !== ''; });
         $('.v-remove', row).addEventListener('click', function () { row.remove(); });
 
-        var preview = $('.v-preview', row);
-        var imageInput = $('.v-image', row);
-        var file = $('input[type="file"]', row);
+        var imagesList = $('.v-images-list', row);
+        var addImgBtn = $('.v-add-img', row);
+        var uploadMultiBtn = $('.v-upload-multi', row);
+        var fileMulti = $('.v-file-multi', row);
 
-        function paint() {
-            var v = imageInput.value.trim();
-            if (v) {
-                preview.src = v;
-                preview.style.visibility = 'visible';
-            } else {
-                preview.removeAttribute('src');
-                preview.style.visibility = 'hidden';
+        function createImageItem(initialUrl) {
+            initialUrl = initialUrl || '';
+            var item = document.createElement('div');
+            item.className = 'v-image-item';
+            item.innerHTML =
+                '<img class="v-preview" alt="" loading="lazy">' +
+                '<input class="input v-image" type="text" placeholder="Variant image URL (optional) — shown when this colour is picked" value="' + esc(initialUrl) + '">' +
+                '<button class="icon-mini v-upload" type="button" aria-label="Upload variant image" title="Upload image">' + icon('ai-upload') + '</button>' +
+                '<input type="file" accept="image/*" hidden class="v-file-single">' +
+                '<button class="icon-mini danger v-img-del" type="button" aria-label="Remove image" title="Remove image">' + icon('ai-trash') + '</button>';
+
+            var preview = $('.v-preview', item);
+            var imageInput = $('.v-image', item);
+            var fileInput = $('.v-file-single', item);
+            var uploadBtn = $('.v-upload', item);
+            var removeBtn = $('.v-img-del', item);
+
+            function paint() {
+                var v = imageInput.value.trim();
+                if (v) {
+                    preview.src = v;
+                    preview.style.visibility = 'visible';
+                } else {
+                    preview.removeAttribute('src');
+                    preview.style.visibility = 'hidden';
+                }
             }
-        }
-        imageInput.addEventListener('input', paint);
-        paint();
+            imageInput.addEventListener('input', paint);
+            imageInput.addEventListener('paste', function (e) {
+                var pasted = (e.clipboardData || window.clipboardData).getData('text');
+                if (pasted && pasted.indexOf(',') !== -1) {
+                    e.preventDefault();
+                    var urls = pasted.split(',').map(function (u) { return u.trim(); }).filter(Boolean);
+                    if (urls.length) {
+                        imageInput.value = urls[0];
+                        paint();
+                        for (var u = 1; u < urls.length; u++) {
+                            createImageItem(urls[u]);
+                        }
+                    }
+                }
+            });
+            paint();
 
-        var uploadBtn = $('.v-upload', row);
-        uploadBtn.addEventListener('click', function () { file.click(); });
-        file.addEventListener('change', function () {
-            var f = file.files && file.files[0];
-            if (!f) return;
-            uploadBtn.disabled = true;
-            preview.style.visibility = 'visible';
-            preview.src = URL.createObjectURL(f);
-            backend.uploadImage(f).then(function (uploaded) {
-                imageInput.value = uploaded;
-                paint();
-                toast('Variant image uploaded', 'success');
+            uploadBtn.addEventListener('click', function () { fileInput.click(); });
+            fileInput.addEventListener('change', function () {
+                var f = fileInput.files && fileInput.files[0];
+                if (!f) return;
+                uploadBtn.disabled = true;
+                preview.style.visibility = 'visible';
+                preview.src = URL.createObjectURL(f);
+                backend.uploadImage(f).then(function (uploaded) {
+                    imageInput.value = uploaded;
+                    paint();
+                    toast('Variant image uploaded', 'success');
+                }).catch(function (err) {
+                    paint();
+                    toast(err.message, 'error');
+                }).then(function () {
+                    uploadBtn.disabled = false;
+                    fileInput.value = '';
+                });
+            });
+
+            removeBtn.addEventListener('click', function () {
+                var total = $$('.v-image-item', imagesList).length;
+                if (total > 1) {
+                    item.remove();
+                } else {
+                    imageInput.value = '';
+                    paint();
+                }
+            });
+
+            imagesList.appendChild(item);
+            return item;
+        }
+
+        var rawImgs = color[2];
+        var initImgs = [];
+        if (Array.isArray(rawImgs)) {
+            initImgs = rawImgs.filter(Boolean);
+        } else if (typeof rawImgs === 'string' && rawImgs.trim()) {
+            initImgs = rawImgs.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        }
+        if (!initImgs.length) initImgs = [''];
+        initImgs.forEach(function (u) { createImageItem(u); });
+
+        addImgBtn.addEventListener('click', function () {
+            var it = createImageItem('');
+            var inp = $('.v-image', it);
+            if (inp) inp.focus();
+        });
+
+        uploadMultiBtn.addEventListener('click', function () { fileMulti.click(); });
+        fileMulti.addEventListener('change', function () {
+            var files = Array.prototype.slice.call(fileMulti.files || []);
+            if (!files.length) return;
+            uploadMultiBtn.disabled = true;
+            toast('Uploading ' + files.length + ' image' + (files.length > 1 ? 's' : '') + '...', 'info');
+            var uploads = files.map(function (f) { return backend.uploadImage(f); });
+            Promise.all(uploads).then(function (urls) {
+                urls.forEach(function (url) {
+                    if (!url) return;
+                    var emptyItem = null;
+                    $$('.v-image-item', imagesList).forEach(function (it) {
+                        if (!emptyItem && !$('.v-image', it).value.trim()) emptyItem = it;
+                    });
+                    if (emptyItem) {
+                        $('.v-image', emptyItem).value = url;
+                        var prev = $('.v-preview', emptyItem);
+                        prev.src = url;
+                        prev.style.visibility = 'visible';
+                    } else {
+                        createImageItem(url);
+                    }
+                });
+                toast('Uploaded ' + urls.length + ' variant image' + (urls.length > 1 ? 's' : ''), 'success');
             }).catch(function (err) {
-                paint();
                 toast(err.message, 'error');
             }).then(function () {
-                uploadBtn.disabled = false;
-                file.value = '';
+                uploadMultiBtn.disabled = false;
+                fileMulti.value = '';
             });
         });
 
@@ -2927,7 +3029,11 @@
         $$('#colorList .variant-row').forEach(function (row) {
             var name = $('.v-name', row).value.trim();
             var hex = $('.v-hex', row).value.trim() || $('.v-color', row).value || '#cccccc';
-            var image = $('.v-image', row).value.trim();
+            var images = [];
+            $$('.v-image', row).forEach(function (inp) {
+                var v = inp.value.trim();
+                if (v && images.indexOf(v) === -1) images.push(v);
+            });
             var sizes = $('.v-sizes', row).value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
             var qtyWrap = $('.v-qty-wrap', row);
             var qty = null;
@@ -2949,7 +3055,7 @@
                     qty = Object.keys(sizeStock).reduce(function (sum, k) { return sum + sizeStock[k]; }, 0);
                 }
             }
-            if (name) colors.push([name, hex, image, sizes, qty, sizeStock]);
+            if (name) colors.push([name, hex, images, sizes, qty, sizeStock]);
         });
 
         var derivedSizes = [];
@@ -2958,7 +3064,10 @@
         var hasVariantStock = false;
         colors.forEach(function (c) {
             (c[3] || []).forEach(function (s) { if (derivedSizes.indexOf(s) === -1) derivedSizes.push(s); });
-            if (c[2] && derivedImages.indexOf(c[2]) === -1) derivedImages.push(c[2]);
+            var cImgs = Array.isArray(c[2]) ? c[2] : (c[2] ? [c[2]] : []);
+            cImgs.forEach(function (img) {
+                if (img && derivedImages.indexOf(img) === -1) derivedImages.push(img);
+            });
             if (c[4] != null) { derivedStock += c[4]; hasVariantStock = true; }
         });
 
@@ -3052,8 +3161,6 @@
         var rating = Number(rec.rating) || 0;
         var reviewCount = Number(rec.reviewCount) || 0;
         var stock = Number(rec.stock) || 0;
-        var freeMin = (NC.store && NC.store.getFreeShippingMin) ? NC.store.getFreeShippingMin() : 999;
-        var shipFee = (NC.store && NC.store.getShippingFee) ? NC.store.getShippingFee() : 49;
         var sizes = Array.isArray(rec.sizes) ? rec.sizes : [];
         var colors = (rec.colors || []).map(function (c) { return c[0]; }).filter(Boolean);
         var keywords = String(rec.keywords || '')
@@ -3068,28 +3175,6 @@
         var trait = pickAt(traitsFor(category + ' ' + keywords.join(' ') + ' ' + name), 1);
         var quality = pickAt(QUALITY_WORDS[tier], 2);
         var valueLine = pickAt(VALUE_LINES, 3);
-
-        var shipVariants = freeMin
-            ? [
-                'Free delivery on orders above ₹' + freeMin + ', else ₹' + shipFee,
-                'Free shipping over ₹' + freeMin + ' — flat ₹' + shipFee + ' below that',
-                'Enjoy free delivery on orders above ₹' + freeMin,
-                'Ships free on orders over ₹' + freeMin
-            ]
-            : [
-                'Free delivery on all orders',
-                'Enjoy free shipping on every order',
-                'Free shipping, always'
-            ];
-        var returnVariants = [
-            '7-day easy returns & exchange',
-            'Hassle-free 7-day returns and exchanges',
-            'Easy 7-day return & exchange policy',
-            'Not satisfied? 7-day easy returns & exchange'
-        ];
-        var shipNote = pickAt(shipVariants, 4);
-        var returnNote = pickAt(returnVariants, 5);
-        var shipNoteLower = shipNote.charAt(0).toLowerCase() + shipNote.slice(1);
 
         var h = [];
         if (keywords.length) h.push('Key features: ' + keywords.slice(0, 5).join(', '));
@@ -3113,8 +3198,6 @@
         if (badges.indexOf('bestseller') !== -1) h.push('Bestseller — loved by our shoppers');
         if (badges.indexOf('new') !== -1) h.push('New arrival this season');
         h.push(stock > 0 ? 'In stock — dispatched within 24 hours' : 'Currently out of stock — back soon');
-        h.push(shipNote);
-        h.push(returnNote);
         if (/electronic/i.test(category)) h.push('1-year manufacturer warranty included');
 
         var d = [];
@@ -3127,7 +3210,7 @@
         if (mrp > price && price > 0) {
             d.push('Currently offered at ₹' + price + ', down from ₹' + mrp + ' (save ₹' + (mrp - price) + ').');
         }
-        d.push(valueLine + '. Backed by our ' + returnNote.toLowerCase() + ', with ' + shipNoteLower + '.');
+        d.push(valueLine + '.');
 
         var f = $('#productForm').elements;
         f.highlights.value = h.join('\n');
@@ -3363,6 +3446,39 @@
             .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     }
 
+    var PAGE_LINK_PLATFORMS = {
+        facebook: 'Facebook',
+        x: 'X (Twitter)',
+        instagram: 'Instagram',
+        youtube: 'YouTube',
+        linkedin: 'LinkedIn',
+        whatsapp: 'WhatsApp',
+        telegram: 'Telegram',
+        website: 'Website',
+        other: 'Other'
+    };
+
+    function pageLinkRow(link) {
+        link = link || {};
+        var platform = PAGE_LINK_PLATFORMS[link.platform] ? link.platform : (link.href || link.label ? 'other' : 'facebook');
+        var row = document.createElement('div');
+        row.className = 'page-link-row' + (platform === 'other' ? ' is-other' : '');
+        var opts = Object.keys(PAGE_LINK_PLATFORMS).map(function (k) {
+            return '<option value="' + k + '"' + (k === platform ? ' selected' : '') + '>' +
+                PAGE_LINK_PLATFORMS[k] + '</option>';
+        }).join('');
+        row.innerHTML =
+            '<select class="input pl-platform" aria-label="Platform">' + opts + '</select>' +
+            '<input class="input pl-href" type="text" placeholder="https://…" aria-label="Link address" value="' + esc(link.href || '') + '">' +
+            '<button class="icon-mini danger pl-remove" type="button" aria-label="Remove link">' + icon('ai-trash') + '</button>' +
+            '<input class="input pl-label" type="text" placeholder="Text shown to visitors, e.g. Snapchat" aria-label="Shown text" value="' + esc(link.label || '') + '">';
+        $('.pl-platform', row).addEventListener('change', function () {
+            row.classList.toggle('is-other', this.value === 'other');
+        });
+        $('.pl-remove', row).addEventListener('click', function () { row.remove(); });
+        return row;
+    }
+
     function pageRow(page) {
         page = page || {};
         var row = document.createElement('div');
@@ -3373,7 +3489,12 @@
             '<input class="input p-title" type="text" placeholder="Page title" value="' + esc(page.title || '') + '">' +
             '</div>' +
             '<textarea class="input p-body" rows="3" placeholder="Page content — one paragraph per line">' + esc(page.body || '') + '</textarea>' +
-            '<button class="icon-mini danger p-remove" type="button" aria-label="Remove page">' + icon('ai-trash') + '</button>';
+            '<button class="icon-mini danger p-remove" type="button" aria-label="Remove page">' + icon('ai-trash') + '</button>' +
+            '<div class="page-links">' +
+            '<div class="page-links-list"></div>' +
+            '<button class="btn btn-outline btn-sm p-link-add" type="button">' +
+            icon('ai-plus') + 'Add link</button>' +
+            '</div>';
 
         var slugInput = $('.p-slug', row);
         var titleInput = $('.p-title', row);
@@ -3384,6 +3505,17 @@
             }
         });
         slugInput.addEventListener('input', function () { slugInput.dataset.auto = '0'; });
+
+        var linkList = $('.page-links-list', row);
+        $('.p-link-add', row).addEventListener('click', function () {
+            var added = pageLinkRow({});
+            linkList.appendChild(added);
+            var input = $('.pl-href', added);
+            if (input) input.focus();
+        });
+        (Array.isArray(page.links) ? page.links : []).forEach(function (l) {
+            if (l && (l.href || l.label)) linkList.appendChild(pageLinkRow(l));
+        });
 
         $('.p-remove', row).addEventListener('click', function () { row.remove(); });
         return row;
@@ -3405,7 +3537,15 @@
             var slug = slugify($('.p-slug', row).value.trim() || title);
             var body = $('.p-body', row).value.trim();
             if (!slug && !title) return;
-            out.push({ slug: slug, title: title, body: body });
+            var links = [];
+            $$('.page-link-row', row).forEach(function (lr) {
+                var href = $('.pl-href', lr).value.trim();
+                if (!href) return;
+                var platform = $('.pl-platform', lr).value;
+                var label = $('.pl-label', lr).value.trim();
+                links.push({ platform: platform, label: label, href: href });
+            });
+            out.push({ slug: slug, title: title, body: body, links: links });
         });
         return out;
     }

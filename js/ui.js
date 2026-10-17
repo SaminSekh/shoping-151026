@@ -32,9 +32,79 @@
     }
 
     function imgError(img) {
+        if (!img) return;
         if (img.dataset.fallbackApplied) return;
         img.dataset.fallbackApplied = '1';
-        img.src = NC.data.placeholder;
+        img.src = (NC.data && NC.data.placeholder) || 'assets/placeholder.svg';
+        img.classList.add('loaded');
+        var media = img.closest('.card-media, .cart-item-media') || img.parentElement;
+        if (media) media.classList.remove('skeleton-shimmer');
+    }
+
+    var lazyImageObserver = null;
+
+    function getLazyImageObserver() {
+        if (!lazyImageObserver && ('IntersectionObserver' in window)) {
+            lazyImageObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        var img = entry.target;
+                        lazyImageObserver.unobserve(img);
+                        loadImage(img);
+                    }
+                });
+            }, {
+                rootMargin: '250px 0px 250px 0px',
+                threshold: 0.01
+            });
+        }
+        return lazyImageObserver;
+    }
+
+    function loadImage(img) {
+        if (!img) return;
+        var realSrc = img.getAttribute('data-src');
+        if (!realSrc) {
+            if (img.complete && img.naturalWidth > 0) {
+                img.classList.add('loaded');
+                var m = img.closest('.card-media, .cart-item-media') || img.parentElement;
+                if (m) m.classList.remove('skeleton-shimmer');
+            }
+            return;
+        }
+
+        img.removeAttribute('data-src');
+
+        function onDone() {
+            img.classList.add('loaded');
+            var media = img.closest('.card-media, .cart-item-media') || img.parentElement;
+            if (media) media.classList.remove('skeleton-shimmer');
+        }
+
+        img.addEventListener('load', onDone, { once: true });
+        img.addEventListener('error', function () {
+            imgError(img);
+            onDone();
+        }, { once: true });
+
+        img.src = realSrc;
+        if (img.complete && img.naturalWidth > 0) {
+            onDone();
+        }
+    }
+
+    function initLazyImages(root) {
+        root = root || document;
+        var imgs = root.querySelectorAll('img.lazy-img[data-src]');
+        var observer = getLazyImageObserver();
+        for (var i = 0; i < imgs.length; i++) {
+            var img = imgs[i];
+            if (observer) {
+                observer.observe(img);
+            } else {
+                loadImage(img);
+            }
+        }
     }
 
     function debounce(fn, wait) {
@@ -82,24 +152,38 @@
         return Math.round(Number(product.discountPct)) || 0;
     }
 
-    function badgesFor(product) {
-        var out = '';
+    function badgesList(product) {
+        if (!product) return [];
+        var list = [];
         var off = discountPct(product);
         if (off > 0) {
-            out += '<span class="pill pill-sale">' + off + '% off</span>';
+            list.push('<span class="pill pill-sale">' + off + '% off</span>');
         }
         var tags = Array.isArray(product.tags) ? product.tags : [];
         var badges = Array.isArray(product.badges) ? product.badges : [];
         if (tags.indexOf('new') !== -1 || badges.indexOf('new') !== -1) {
-            out += '<span class="pill pill-new">New</span>';
+            list.push('<span class="pill pill-new">New</span>');
         }
         if (tags.indexOf('bestseller') !== -1 || badges.indexOf('bestseller') !== -1) {
-            out += '<span class="pill pill-best">Bestseller</span>';
+            list.push('<span class="pill pill-best">Bestseller</span>');
         }
         if (tags.indexOf('lowstock') !== -1 || (product.stock > 0 && product.stock <= 8)) {
-            out += '<span class="pill pill-low">Only ' + product.stock + ' left</span>';
+            list.push('<span class="pill pill-low">Only ' + product.stock + ' left</span>');
         }
-        return out;
+        return list;
+    }
+
+    function badgesFor(product) {
+        return badgesList(product).join('');
+    }
+
+    function badgesMarkup(product) {
+        var list = badgesList(product);
+        if (!list.length) return '';
+        var isMulti = list.length > 1;
+        var cls = 'card-badges' + (isMulti ? ' card-badges-cycle' : '');
+        var attr = isMulti ? ' data-count="' + list.length + '"' : '';
+        return '<div class="' + cls + '"' + attr + '>' + list.join('') + '</div>';
     }
 
     function card(product, opts) {
@@ -115,14 +199,21 @@
             swatches += '<span class="swatch-more">+' + (product.colors.length - 4) + '</span>';
         }
 
+        var imgSrc = (product.images && product.images[0]) || (NC.data && NC.data.placeholder) || 'assets/placeholder.svg';
+
         return '<article class="card" data-product="' + product.id + '">' +
-            '<a class="card-media" href="' + href + '" aria-label="View ' + esc(product.name) + '">' +
-            '<img src="' + esc(product.images[0]) + '" alt="' + esc(product.name) + '" loading="lazy" decoding="async" onerror="NC.ui.imgError(this)">' +
-            (badgesFor(product) ? '<div class="card-badges">' + badgesFor(product) + '</div>' : '') +
+            '<a class="card-media skeleton-shimmer" href="' + href + '" aria-label="View ' + esc(product.name) + '">' +
+            '<img class="lazy-img" src="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 1 1\'%3E%3C/svg%3E" data-src="' +
+            esc(imgSrc) + '" alt="' + esc(product.name) + '" loading="lazy" decoding="async" onerror="NC.ui.imgError(this)">' +
+            badgesMarkup(product) +
             '</a>' +
             '<button class="card-fav' + (fav ? ' on' : '') + '" type="button" data-action="toggle-wish" data-id="' + product.id +
             '" aria-pressed="' + fav + '" aria-label="' + (fav ? 'Remove from wishlist' : 'Add to wishlist') + '">' +
             icon(fav ? 'i-heart-fill' : 'i-heart') +
+            '</button>' +
+            '<button class="card-share" type="button" data-action="share-product" data-id="' + product.id +
+            '" aria-label="Share ' + esc(product.name) + '">' +
+            icon('i-share') +
             '</button>' +
             '<div class="card-body">' +
             '<span class="card-brand">' + esc(product.brand) + '</span>' +
@@ -420,6 +511,51 @@
         NC.router.render();
     }
 
+    function shareProduct(id) {
+        var product = NC.data.byId(id);
+        if (!product) return;
+        var url = location.origin + location.pathname + '#/product/' + id;
+        var storeName = (NC.settings && NC.settings.storeName) || 'this store';
+        var promo = 'Hey look at this site I found — ' + storeName +
+            ' is giving premium products at low cost, the best I\'ve seen on any shopping site. ' +
+            'Check out ' + product.name + '!';
+        var shareData = {
+            title: product.name,
+            text: promo,
+            url: url
+        };
+        if (navigator.share) {
+            navigator.share(shareData).catch(function () { });
+            return;
+        }
+        var fallback = function () {
+            toast('Could not copy link', 'error');
+        };
+        var copyValue = promo + '\n' + url;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(copyValue).then(function () {
+                toast('Share message copied', 'success');
+                announce('Share message copied');
+            }).catch(fallback);
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = copyValue;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                toast('Share message copied', 'success');
+                announce('Share message copied');
+            } catch (err) {
+                fallback();
+            }
+            document.body.removeChild(ta);
+        }
+    }
+
     function quickAdd(id) {
         var product = NC.data.byId(id);
         if (!product) return;
@@ -565,6 +701,12 @@
                 openImageZoom(zoomImg.getAttribute('src'), zoomImg.getAttribute('alt'));
                 return;
             }
+            var cardEl = e.target.closest('.card[data-product]');
+            if (cardEl && !e.target.closest('button, a')) {
+                var id = cardEl.getAttribute('data-product');
+                if (id) { location.hash = '#/product/' + id; }
+                return;
+            }
             var trigger = e.target.closest('[data-action]');
             if (!trigger) return;
             var action = trigger.getAttribute('data-action');
@@ -587,6 +729,11 @@
             else if (action === 'close-cart') { closeDrawer(); }
             else if (action === 'toggle-theme') { NC.store.toggleTheme(); }
             else if (action === 'toggle-wish') { toggleWish(trigger); }
+            else if (action === 'share-product') {
+                e.preventDefault();
+                e.stopPropagation();
+                shareProduct(trigger.getAttribute('data-id'));
+            }
             else if (action === 'quick-add') {
                 e.preventDefault();
                 e.stopPropagation();
@@ -612,6 +759,14 @@
             if (reason.indexOf('wishlist') === 0) updateBadges();
         });
 
+        if (window.MutationObserver && document.body) {
+            var domObserver = new MutationObserver(function () {
+                initLazyImages(document.body);
+            });
+            domObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
+        initLazyImages(document.body);
         updateBadges();
         renderCartDrawer();
     }
@@ -622,10 +777,13 @@
         esc: esc,
         icon: icon,
         imgError: imgError,
+        initLazyImages: initLazyImages,
+        loadImage: loadImage,
         debounce: debounce,
         stars: starsMarkup,
         discountPct: discountPct,
         badges: badgesFor,
+        badgesMarkup: badgesMarkup,
         card: card,
         grid: grid,
         emptyState: emptyState,

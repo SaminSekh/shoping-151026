@@ -177,14 +177,23 @@
     function toColors(value) {
         if (!Array.isArray(value)) return [];
         return value.map(function (c) {
-            var name, hex, image, sizes, stock, sizeStock;
+            var name, hex, rawImage, sizes, stock, sizeStock;
             if (Array.isArray(c)) {
-                name = c[0]; hex = c[1]; image = c[2]; sizes = c[3]; stock = c[4]; sizeStock = c[5];
+                name = c[0]; hex = c[1]; rawImage = c[2]; sizes = c[3]; stock = c[4]; sizeStock = c[5];
             } else if (c && typeof c === 'object') {
-                name = c.name; hex = c.hex || c.value; image = c.image || c.img || c.imageUrl; sizes = c.sizes; stock = c.stock;
+                name = c.name; hex = c.hex || c.value; rawImage = c.images || c.image || c.img || c.imageUrl; sizes = c.sizes; stock = c.stock;
                 sizeStock = c.sizeStock || c.sizesStock;
             } else {
                 name = c; hex = '#cccccc';
+            }
+            var images = [];
+            if (Array.isArray(rawImage)) {
+                images = rawImage.map(function (s) { return String(s == null ? '' : s).trim(); }).filter(Boolean);
+            } else if (rawImage) {
+                var str = String(rawImage).trim();
+                if (str) {
+                    images = str.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+                }
             }
             var qty = null;
             if (stock !== undefined && stock !== null && stock !== '') {
@@ -204,7 +213,7 @@
             return [
                 String(name || '').trim(),
                 String(hex || '#cccccc').trim(),
-                String(image || '').trim(),
+                images,
                 toArray(sizes),
                 qty,
                 bySize
@@ -1054,7 +1063,10 @@
                     slug: 'contact',
                     title: 'Contact us',
                     body: 'Have a question about an order? Reach out using any of the contact options in the footer.\n' +
-                        'Our support team replies within 24 hours on business days.'
+                        'Our support team replies within 24 hours on business days.',
+                    links: [
+                        { platform: 'facebook', label: '', href: 'https://www.facebook.com/Dolphinmore' }
+                    ]
                 },
                 {
                     slug: 'about',
@@ -1581,6 +1593,7 @@
 
         document.querySelectorAll('[data-brand-name]').forEach(function (el) { renderBrandName(el, s); });
         document.querySelectorAll('[data-brand-logo]').forEach(function (el) { renderBrandMark(el, s); });
+        document.querySelectorAll('[data-store-name]').forEach(function (el) { el.textContent = s.storeName || ''; });
         document.querySelectorAll('[data-store-blurb]').forEach(function (el) { el.textContent = s.footerBlurb || ''; });
         document.querySelectorAll('[data-promo-text]').forEach(function (el) { el.textContent = s.promoText || ''; });
         renderStoreContacts(s.contacts);
@@ -1600,6 +1613,9 @@
         });
         document.querySelectorAll('[data-pwa-app-name]').forEach(function (el) {
             el.textContent = 'Install ' + (s.storeName || 'DolphinMore') + ' APK';
+        });
+        document.querySelectorAll('[data-pwa-install-title]').forEach(function (el) {
+            el.textContent = 'Install ' + (s.storeName || 'DolphinMore');
         });
         document.querySelectorAll('[data-pwa-store-title]').forEach(function (el) {
             el.textContent = (s.storeName || 'DolphinMore') + ' — Online Shopping';

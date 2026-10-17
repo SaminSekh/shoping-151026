@@ -177,24 +177,33 @@
     }
 
     function sanitizeColor(color) {
-        var name, hex, image, sizes, stock, sizeStock;
+        var name, hex, rawImage, sizes, stock, sizeStock;
         if (Array.isArray(color)) {
             name = color[0];
             hex = color[1];
-            image = color[2];
+            rawImage = color[2];
             sizes = color[3];
             stock = color[4];
             sizeStock = color[5];
         } else if (color && typeof color === 'object') {
             name = color.name;
             hex = color.hex || color.value;
-            image = color.image || color.img || color.imageUrl;
+            rawImage = color.images || color.image || color.img || color.imageUrl;
             sizes = color.sizes;
             stock = color.stock;
             sizeStock = color.sizeStock || color.sizesStock;
         } else {
             name = color;
             hex = '#cccccc';
+        }
+        var images = [];
+        if (Array.isArray(rawImage)) {
+            images = rawImage.map(function (s) { return String(s == null ? '' : s).trim(); }).filter(Boolean);
+        } else if (rawImage) {
+            var str = String(rawImage).trim();
+            if (str) {
+                images = str.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+            }
         }
         var qty = null;
         if (stock !== undefined && stock !== null && stock !== '') {
@@ -214,7 +223,7 @@
         return [
             String(name || '').trim(),
             String(hex || '#cccccc').trim(),
-            String(image || '').trim(),
+            images,
             splitList(sizes),
             qty,
             bySize
@@ -231,7 +240,7 @@
             return [
                 c[0],
                 c[1],
-                variantImage(slug, seed, ci, rawColors.length),
+                [variantImage(slug, seed, ci, rawColors.length)],
                 sizeSet.slice(),
                 null,
                 null
@@ -240,7 +249,10 @@
 
         var images = [];
         colors.forEach(function (c) {
-            if (c[2] && images.indexOf(c[2]) === -1) images.push(c[2]);
+            var cImgs = Array.isArray(c[2]) ? c[2] : (c[2] ? [c[2]] : []);
+            cImgs.forEach(function (src) {
+                if (src && images.indexOf(src) === -1) images.push(src);
+            });
         });
         buildImages(slug, seed + 2).forEach(function (src) {
             if (images.indexOf(src) === -1 && images.length < 4) images.push(src);
@@ -311,7 +323,10 @@
                     if (bc[0] === c[0]) match = bc;
                 });
                 if (match) {
-                    if (!c[2] && match[2]) c[2] = match[2];
+                    var cImgs = Array.isArray(c[2]) ? c[2] : (c[2] ? [c[2]] : []);
+                    if (!cImgs.length && match[2]) {
+                        c[2] = Array.isArray(match[2]) ? match[2].slice() : [match[2]];
+                    }
                     if ((!c[3] || !c[3].length) && match[3] && match[3].length) c[3] = match[3].slice();
                 }
             });
@@ -450,13 +465,37 @@
         var name = String(color == null ? '' : color).trim();
         if (name) {
             for (var i = 0; i < colors.length; i++) {
-                if (colors[i] && String(colors[i][0]).trim() === name && colors[i][2]) {
-                    return colors[i][2];
+                if (colors[i] && String(colors[i][0]).trim() === name) {
+                    var c2 = colors[i][2];
+                    var img = Array.isArray(c2) ? c2[0] : c2;
+                    if (img) return img;
                 }
             }
         }
-        if (colors[0] && colors[0][2]) return colors[0][2];
+        if (colors[0]) {
+            var firstC2 = colors[0][2];
+            var firstImg = Array.isArray(firstC2) ? firstC2[0] : firstC2;
+            if (firstImg) return firstImg;
+        }
         return (product.images && product.images[0]) || (NC.data && NC.data.placeholder) || '';
+    }
+
+    // All images for a given variant (color), or empty array if none.
+    function variantImagesFor(product, color) {
+        if (!product) return [];
+        var colors = product.colors || [];
+        var name = String(color == null ? '' : color).trim();
+        if (name) {
+            for (var i = 0; i < colors.length; i++) {
+                if (colors[i] && String(colors[i][0]).trim() === name) {
+                    var c2 = colors[i][2];
+                    if (Array.isArray(c2)) return c2.filter(Boolean);
+                    if (typeof c2 === 'string' && c2.trim()) return [c2.trim()];
+                    return [];
+                }
+            }
+        }
+        return [];
     }
 
     function getRelated(product, limit) {
@@ -501,6 +540,7 @@
         priceBounds: { min: 0, max: 0 },
         byId: getById,
         variantImage: variantImageFor,
+        variantImages: variantImagesFor,
         related: getRelated,
         search: search,
         placeholder: 'assets/placeholder.svg',

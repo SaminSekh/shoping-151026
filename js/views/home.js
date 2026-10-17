@@ -30,6 +30,12 @@
     var heroIndex = 0;
     var HERO_DELAY = 4000;
 
+    var BATCH_SIZE = 12;
+    var currentFiltered = [];
+    var renderedCount = 0;
+    var scrollObserver = null;
+    var isLoadingMore = false;
+
     function list(value) {
         if (!value) return [];
         return String(value).split(',').map(function (v) { return v.trim(); }).filter(Boolean);
@@ -444,20 +450,108 @@
         }
 
         els.discover.innerHTML = out;
+        if (NC.ui.initLazyImages) {
+            NC.ui.initLazyImages(els.discover);
+        }
+    }
+
+    function updateCountDisplay() {
+        if (!els.count) return;
+        var total = currentFiltered.length;
+        if (total <= BATCH_SIZE) {
+            els.count.textContent = total + (total === 1 ? ' product' : ' products');
+        } else {
+            els.count.textContent = 'Showing ' + renderedCount + ' of ' + total + ' products';
+        }
+    }
+
+    function setupScrollObserver() {
+        if (scrollObserver) {
+            scrollObserver.disconnect();
+            scrollObserver = null;
+        }
+
+        var sentinel = els.results ? els.results.querySelector('[data-scroll-sentinel]') : null;
+        if (!sentinel) return;
+
+        if ('IntersectionObserver' in window) {
+            scrollObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting && !isLoadingMore && renderedCount < currentFiltered.length) {
+                        loadNextBatch();
+                    }
+                });
+            }, {
+                rootMargin: '400px 0px 400px 0px',
+                threshold: 0.01
+            });
+
+            scrollObserver.observe(sentinel);
+        }
+    }
+
+    function loadNextBatch() {
+        if (isLoadingMore) return;
+        if (renderedCount >= currentFiltered.length) return;
+
+        isLoadingMore = true;
+        var sentinel = els.results ? els.results.querySelector('[data-scroll-sentinel]') : null;
+        if (sentinel) {
+            sentinel.classList.add('is-loading');
+        }
+
+        setTimeout(function () {
+            var gridEl = els.results ? els.results.querySelector('[data-product-grid]') : null;
+            if (!gridEl) {
+                isLoadingMore = false;
+                return;
+            }
+
+            var nextBatch = currentFiltered.slice(renderedCount, renderedCount + BATCH_SIZE);
+            renderedCount += nextBatch.length;
+
+            var html = nextBatch.map(function (p) {
+                return NC.ui.card(p);
+            }).join('');
+
+            gridEl.insertAdjacentHTML('beforeend', html);
+
+            if (NC.ui.initLazyImages) {
+                NC.ui.initLazyImages(gridEl);
+            }
+
+            updateCountDisplay();
+
+            var hasMore = renderedCount < currentFiltered.length;
+            if (sentinel) {
+                sentinel.classList.remove('is-loading');
+                if (!hasMore) {
+                    sentinel.hidden = true;
+                    if (scrollObserver) {
+                        scrollObserver.disconnect();
+                        scrollObserver = null;
+                    }
+                    var endEl = els.results.querySelector('[data-scroll-end]');
+                    if (endEl) endEl.hidden = false;
+                }
+            }
+
+            isLoadingMore = false;
+        }, 160);
     }
 
     function paint(query) {
-        var filtered = applySort(applyFilters(NC.data.products, query), query.sort || 'featured');
+        currentFiltered = applySort(applyFilters(NC.data.products, query), query.sort || 'featured');
+        renderedCount = 0;
+        isLoadingMore = false;
 
         syncControls(query);
         renderActiveFilters(query);
 
         if (els.title) els.title.textContent = titleFor(query);
-        if (els.count) {
-            els.count.textContent = filtered.length + (filtered.length === 1 ? ' product' : ' products');
-        }
 
-        if (!filtered.length) {
+        if (!currentFiltered.length) {
+            if (els.count) els.count.textContent = '0 products';
             els.results.innerHTML = NC.ui.emptyState({
                 icon: 'i-search',
                 title: 'No products match those filters',
@@ -465,8 +559,48 @@
                 actionHref: '#/',
                 actionLabel: 'Clear all filters'
             });
+            if (scrollObserver) {
+                scrollObserver.disconnect();
+                scrollObserver = null;
+            }
         } else {
-            els.results.innerHTML = NC.ui.grid(filtered);
+            renderedCount = Math.min(BATCH_SIZE, currentFiltered.length);
+            updateCountDisplay();
+
+            var initialProducts = currentFiltered.slice(0, renderedCount);
+            var hasMore = renderedCount < currentFiltered.length;
+
+            var markup = '<div class="grid-products" data-product-grid>' +
+                initialProducts.map(function (p) {
+                    return NC.ui.card(p);
+                }).join('') +
+                '</div>';
+
+            markup += '<div class="grid-scroll-sentinel" data-scroll-sentinel' + (hasMore ? '' : ' hidden') + '>' +
+                '<div class="grid-scroll-loader">' +
+                '<div class="loader-spinner" aria-hidden="true"></div>' +
+                '<span>Loading more products...</span>' +
+                '</div>' +
+                '</div>';
+
+            markup += '<div class="grid-scroll-end" data-scroll-end' + (hasMore || currentFiltered.length <= BATCH_SIZE ? ' hidden' : '') + '>' +
+                '<p>You’ve viewed all ' + currentFiltered.length + ' products</p>' +
+                '<button class="btn btn-outline btn-sm" type="button" data-action="back-to-top">' +
+                NC.ui.icon('i-arrow-up', 'icon-sm') + 'Back to top</button>' +
+                '</div>';
+
+            els.results.innerHTML = markup;
+
+            if (NC.ui.initLazyImages) {
+                NC.ui.initLazyImages(els.results);
+            }
+
+            if (hasMore) {
+                setupScrollObserver();
+            } else if (scrollObserver) {
+                scrollObserver.disconnect();
+                scrollObserver = null;
+            }
         }
 
         renderDiscover(query);
@@ -519,8 +653,27 @@
             if (action === 'remove-filter') {
                 var patch = JSON.parse(actionEl.getAttribute('data-patch'));
                 NC.router.setQuery(patch);
+                return;
+            }
+
+            if (action === 'back-to-top') {
+                var targetY = els.results ? (els.results.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+                window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+                return;
             }
         });
+
+        var onScrollCheck = function () {
+            if (isLoadingMore || !els.results || renderedCount >= currentFiltered.length) return;
+            var sentinel = els.results.querySelector('[data-scroll-sentinel]:not([hidden])');
+            if (!sentinel) return;
+            var rect = sentinel.getBoundingClientRect();
+            if (rect.top <= (window.innerHeight || document.documentElement.clientHeight) + 400) {
+                loadNextBatch();
+            }
+        };
+
+        window.addEventListener('scroll', onScrollCheck, { passive: true });
 
         view.addEventListener('change', function (e) {
             var input = e.target.closest('[data-filter]');
@@ -560,6 +713,12 @@ NC.views = NC.views || {};
 NC.views.home = { render: render, filters: applyFilters, sort: applySort, buckets: PRICE_BUCKETS };
 NC.router.add('/', render);
 NC.router.on(function (parsed) {
-    if (parsed.path !== '/') stopHero();
+    if (parsed.path !== '/') {
+        stopHero();
+        if (scrollObserver) {
+            scrollObserver.disconnect();
+            scrollObserver = null;
+        }
+    }
 });
 })();

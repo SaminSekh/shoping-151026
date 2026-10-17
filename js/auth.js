@@ -556,7 +556,7 @@
         }
 
         body.innerHTML = '<div class="auth-brand"><span class="brand-mark" data-auth-logo>N</span>' +
-            '<b>' + esc((NC.settings && NC.settings.storeName) || 'NovaCart') + '</b></div>' +
+            '<b>' + esc((NC.settings && NC.settings.storeName) || '') + '</b></div>' +
             '<div class="auth-tabs">' + tabButton('signin', 'Sign in') + tabButton('register', 'Register') + tabButton('guest', 'Guest') + '</div>' +
             formForTab();
 

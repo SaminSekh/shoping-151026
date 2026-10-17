@@ -8,8 +8,8 @@
     <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
     <meta name="googlebot" content="noindex, nofollow">
     <link rel="icon" href="assets/icon-192.png" type="image/png">
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/admin.css?v=4">
+    <link rel="stylesheet" href="css/style.css?v=2">
+    <link rel="stylesheet" href="css/admin.css?v=6">
     <script>
         (function () {
             try {
@@ -161,7 +161,7 @@
                 <span class="admin-logo">
                     <span class="brand-mark" data-brand-logo>N</span>
                     <span class="admin-logo-text">
-                        <b data-brand-name>NovaCart</b>
+                        <b data-brand-name></b>
                         <small>Admin panel</small>
                     </span>
                 </span>
@@ -309,7 +309,7 @@
                         <button class="btn btn-outline btn-sm" type="button" id="productExportBtn">
                             <svg class="icon" aria-hidden="true"><use href="#ai-download"></use></svg>Export
                         </button>
-                        <button class="btn btn-primary" type="button" id="newProductBtn">
+                        <button class="btn btn-primary btn-sm" type="button" id="newProductBtn">
                             <svg class="icon" aria-hidden="true"><use href="#ai-plus"></use></svg>New product
                         </button>
                     </div>
@@ -378,7 +378,7 @@
                 <p class="hint">Export downloads every product as an editable CSV. Import it back to add or update rows —
                     existing ids are skipped, new ids added. Put multiple values (images, sizes, badges, highlights) in one
                     cell separated by <b>|</b>. Leave <b>id</b> empty for new rows. Variants column format:
-                    <b>Name|#hex|imageURL|S,M,L|qty|S=3,M=4</b> (separate variants with <b>;</b>).</p>
+                    <b>Name|#hex|imageURL1,imageURL2|S,M,L|qty|S=3,M=4</b> (separate variants with <b>;</b>, separate variant images with <b>,</b>).</p>
                 <div class="product-table" id="productList"></div>
                 <div class="pager" id="productPager" hidden></div>
             </section>
@@ -495,7 +495,10 @@
                             <svg class="icon" aria-hidden="true"><use href="#ai-plus"></use></svg>Add page
                         </button>
                         <small class="hint">Each page opens at <code>#/info/&lt;slug&gt;</code>. Point a footer link
-                            above at it, e.g. <code>#/info/about</code>. One paragraph per line.</small>
+                            above at it, e.g. <code>#/info/about</code>. One paragraph per line.
+                            For social links, use <b>Add link</b> under a page — visitors see only the platform
+                            name (Facebook, X, Instagram…), never the URL. Inside the text you can also write
+                            <code>[Facebook](https://…)</code> and it becomes a clickable name.</small>
                     </div>
 
                     <div class="panel-actions">
@@ -608,7 +611,7 @@
                     <div class="variant-list" id="colorList"></div>
                     <button class="btn btn-ghost btn-sm" type="button" id="addColorBtn">
                         <svg class="icon" aria-hidden="true"><use href="#ai-plus"></use></svg>Add color</button>
-                    <small class="hint">Each colour can carry its own image and its own sizes. Product image and size lists are built from these variants.</small>
+                    <small class="hint">Each colour can carry multiple images and its own sizes. Product image and size lists are built from these variants.</small>
                 </div>
 
                 <label class="field"><span>Keywords (comma separated)</span>
@@ -697,7 +700,7 @@
     <script src="js/config.js"></script>
     <script src="js/data.js"></script>
     <script src="js/backend.js"></script>
-    <script src="js/admin.js?v=7"></script>
+    <script src="js/admin.js?v=10"></script>
 </body>
 
 </html>

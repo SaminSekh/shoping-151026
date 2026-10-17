@@ -1,4 +1,4 @@
-const VERSION = 'v1.22.0';
+const VERSION = 'v1.23.2';
 const SHELL_CACHE = `novacart-shell-${VERSION}`;
 const ASSET_CACHE = `novacart-assets-${VERSION}`;
 const IMAGE_CACHE = `novacart-images-${VERSION}`;
@@ -186,7 +186,7 @@ async function iconResponse(request) {
 const SHELL_ASSETS = [
     './',
     './index.html',
-    './admin.html',
+    './dolphinadmin.html',
     './manifest.json',
     './css/style.css',
     './css/admin.css',

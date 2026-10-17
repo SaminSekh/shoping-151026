@@ -124,26 +124,40 @@
         return '<p class="stock-line stock-in">' + NC.ui.icon('i-check-circle') + 'In stock, ready to ship</p>';
     }
 
-    function colorImage(product, name) {
-        if (!name) return null;
+    function colorImages(product, name) {
+        if (!name || !product || !product.colors) return [];
         for (var i = 0; i < product.colors.length; i++) {
-            if (product.colors[i][0] === name) return product.colors[i][2] || null;
+            if (product.colors[i] && product.colors[i][0] === name) {
+                var c2 = product.colors[i][2];
+                if (Array.isArray(c2)) return c2.filter(Boolean);
+                if (typeof c2 === 'string' && c2.trim()) return [c2.trim()];
+                return [];
+            }
         }
-        return null;
+        return [];
+    }
+
+    function colorImage(product, name) {
+        var imgs = colorImages(product, name);
+        return imgs.length ? imgs[0] : null;
     }
 
     function colorForImage(product, src) {
-        if (!src) return null;
+        if (!src || !product || !product.colors) return null;
         for (var i = 0; i < product.colors.length; i++) {
-            if (product.colors[i][2] === src) return product.colors[i][0];
+            var imgs = colorImages(product, product.colors[i][0]);
+            if (imgs.indexOf(src) !== -1) return product.colors[i][0];
         }
         return null;
     }
 
     function galleryImages(product) {
         var list = (product.images || []).slice();
-        product.colors.forEach(function (c) {
-            if (c[2] && list.indexOf(c[2]) === -1) list.push(c[2]);
+        (product.colors || []).forEach(function (c) {
+            var imgs = colorImages(product, c[0]);
+            imgs.forEach(function (src) {
+                if (src && list.indexOf(src) === -1) list.push(src);
+            });
         });
         return list.length ? list : (product.images || []);
     }
@@ -168,9 +182,10 @@
         return '<div class="gallery">' +
             '<div class="gallery-main">' +
             '<img src="' + NC.ui.esc(imgs[state.image]) + '" alt="' + NC.ui.esc(product.name) + '" data-lightbox onerror="NC.ui.imgError(this)">' +
-            (off > 0 ? '<div class="card-badges"><span class="pill pill-sale">' + off + '% off</span></div>' : '') +
+            (NC.ui.badgesMarkup ? NC.ui.badgesMarkup(product) : (off > 0 ? '<div class="card-badges"><span class="pill pill-sale">' + off + '% off</span></div>' : '')) +
             '<button class="card-fav gallery-fav' + (NC.store.isWishlisted(product.id) ? ' on' : '') + '" type="button" data-action="pdp-wish" data-id="' +
             product.id + '" aria-label="Toggle wishlist">' + NC.ui.icon(NC.store.isWishlisted(product.id) ? 'i-heart-fill' : 'i-heart') + '</button>' +
+            '<button class="gallery-share" type="button" data-action="pdp-share" data-id="' + product.id + '" aria-label="Share product">' + NC.ui.icon('i-share') + '</button>' +
             '</div>' +
             '<div class="gallery-thumbs">' + thumbs + '</div>' +
             '</div>';
@@ -184,11 +199,20 @@
             out += '<div class="opt-group"><span class="opt-label">Colour: <b>' + NC.ui.esc(sel.color || '—') + '</b></span>' +
                 '<div class="color-list">' + product.colors.map(function (c) {
                     var out = isSoldOut(product, c[0]);
-                    return '<button class="color-opt' + (c[0] === sel.color ? ' active' : '') + (c[2] ? ' has-image' : '') + (out ? ' sold-out' : '') +
+                    var vImgs = colorImages(product, c[0]);
+                    var hasImg = vImgs.length > 0;
+                    var isSelected = (c[0] === sel.color);
+                    var title = out ? c[0] + ' — sold out' :
+                        (hasImg
+                            ? (isSelected && vImgs.length > 1
+                                ? c[0] + ' (' + vImgs.length + ' photos — click to cycle)'
+                                : 'Preview ' + c[0] + (vImgs.length > 1 ? ' (' + vImgs.length + ' photos)' : ''))
+                            : c[0]);
+                    return '<button class="color-opt' + (isSelected ? ' active' : '') + (hasImg ? ' has-image' : '') + (out ? ' sold-out' : '') +
                         '" type="button" data-action="pdp-color" data-color="' + NC.ui.esc(c[0]) + '"' + (out ? ' disabled' : '') +
-                        ' title="' + NC.ui.esc(out ? c[0] + ' — sold out' : (c[2] ? 'Preview ' + c[0] : c[0])) + '">' +
+                        ' title="' + NC.ui.esc(title) + '">' +
                         '<span class="dot" style="background:' + NC.ui.esc(c[1]) + '"></span>' +
-                        NC.ui.esc(c[0]) + (c[2] && !out ? ' <span class="color-cam" aria-hidden="true">' + NC.ui.icon('i-image') + '</span>' : '') +
+                        NC.ui.esc(c[0]) + (hasImg && !out ? ' <span class="color-cam" aria-hidden="true">' + NC.ui.icon('i-image') + (vImgs.length > 1 ? '<span class="color-cam-count">' + vImgs.length + '</span>' : '') + '</span>' : '') +
                         (out ? ' <span class="color-sold">Sold out</span>' : '') + '</button>';
                 }).join('') + '</div></div>';
         }
@@ -532,10 +556,31 @@
                 return;
             }
             if (action === 'pdp-color') {
-                state.color = el.getAttribute('data-color');
-                state.size = null;
-                state.qty = 1;
-                state.image = selectedImageIndex(product);
+                var clickedColor = el.getAttribute('data-color');
+                var vImgs = colorImages(product, clickedColor);
+                var allImgs = galleryImages(product);
+
+                if (state.color === clickedColor && vImgs.length > 1) {
+                    // Already selected! Cycle through this variant's images
+                    var currentSrc = allImgs[state.image];
+                    var curIdx = vImgs.indexOf(currentSrc);
+                    var nextIdx = (curIdx + 1) % vImgs.length;
+                    var nextSrc = vImgs[nextIdx];
+                    var nextGalleryIdx = allImgs.indexOf(nextSrc);
+                    if (nextGalleryIdx !== -1) {
+                        state.image = nextGalleryIdx;
+                    }
+                } else {
+                    state.color = clickedColor;
+                    state.size = null;
+                    state.qty = 1;
+                    if (vImgs.length > 0) {
+                        var firstIdx = allImgs.indexOf(vImgs[0]);
+                        state.image = firstIdx !== -1 ? firstIdx : 0;
+                    } else {
+                        state.image = selectedImageIndex(product);
+                    }
+                }
                 repaint(product);
                 return;
             }
@@ -576,17 +621,43 @@
                     NC.ui.toast(res.reason, 'error');
                     return;
                 }
-                if (action === 'pdp-buy') {
-                    NC.ui.closeDrawer();
-                    if (NC.views.checkout && NC.views.checkout.open) NC.views.checkout.open();
-                    else NC.router.go('/checkout');
-                    return;
-                }
-                NC.ui.toast('Added ' + res.qty + ' × ' + product.name, 'success');
-                NC.ui.announce(res.qty + ' ' + product.name + ' added to cart');
-                NC.ui.openDrawer('cartDrawer');
+            if (action === 'pdp-buy') {
+                NC.ui.closeDrawer();
+                if (NC.views.checkout && NC.views.checkout.open) NC.views.checkout.open();
+                else NC.router.go('/checkout');
+                return;
             }
-        });
+            NC.ui.toast('Added ' + res.qty + ' × ' + product.name, 'success');
+            NC.ui.announce(res.qty + ' ' + product.name + ' added to cart');
+            NC.ui.openDrawer('cartDrawer');
+            return;
+        }
+        if (action === 'pdp-share') {
+            var pid = el.getAttribute('data-id') || state.id;
+            var prod = NC.data.byId(pid) || product;
+            var url = location.origin + location.pathname + '#/product/' + pid;
+            var storeName = (NC.settings && NC.settings.storeName) || 'this store';
+            var promo = 'Hey look at this site I found — ' + storeName +
+                ' is giving premium products at low cost, the best I\'ve seen on any shopping site. ' +
+                'Check out ' + (prod ? prod.name : 'this product') + '!';
+            var shareData = {
+                title: prod ? prod.name : storeName,
+                text: promo,
+                url: url
+            };
+            if (navigator.share) {
+                navigator.share(shareData).catch(function () { });
+            } else {
+                navigator.clipboard.writeText(promo + '\n' + url).then(function () {
+                    NC.ui.toast('Share message copied', 'success');
+                    NC.ui.announce('Share message copied');
+                }).catch(function () {
+                    NC.ui.toast('Could not copy link', 'error');
+                });
+            }
+            return;
+        }
+    });
 
         view.addEventListener('submit', function (e) {
             var form = e.target.closest('[data-review-form]');

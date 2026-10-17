@@ -26,7 +26,7 @@
     <meta property="og:description" content="A fast, modern shopping experience with free delivery over ₹999.">
     <meta name="twitter:card" content="summary_large_image">
 
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=3">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     <script>
@@ -113,6 +113,10 @@
             </symbol>
             <symbol id="i-arrow-right" viewBox="0 0 24 24">
                 <path d="M5 12h13M12.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" />
+            </symbol>
+            <symbol id="i-arrow-up" viewBox="0 0 24 24">
+                <path d="M12 19V5M5 12.5l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round" />
             </symbol>
             <symbol id="i-star" viewBox="0 0 24 24">
@@ -252,6 +256,13 @@
                 <path d="M3 12h18M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18Z" fill="none" stroke="currentColor"
                     stroke-width="2" />
             </symbol>
+            <symbol id="i-share" viewBox="0 0 24 24">
+                <circle cx="18" cy="5" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <circle cx="6" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <circle cx="18" cy="19" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" />
+            </symbol>
         </defs>
     </svg>
 
@@ -266,9 +277,9 @@
                 </svg>
             </button>
 
-            <a class="brand" href="#/" aria-label="NovaCart home">
-                <span class="brand-mark" data-brand-logo aria-hidden="true">N</span>
-                <span class="brand-name" data-brand-name>Nova<em>Cart</em></span>
+            <a class="brand" href="#/" aria-label="Home">
+                <span class="brand-mark" data-brand-logo aria-hidden="true"></span>
+                <span class="brand-name" data-brand-name></span>
             </a>
 
             <div class="header-actions">
@@ -390,7 +401,7 @@
                             onerror="this.src='assets/icon-192.png'">
                     </span>
                     <span class="pwa-install-info">
-                        <strong data-pwa-app-name>Install NovaCart APK</strong>
+                        <strong data-pwa-app-name></strong>
                         <small>Fast, offline &amp; 1-tap shopping</small>
                     </span>
                     <span class="pwa-install-badge">
@@ -448,8 +459,8 @@
         <div class="shell footer-grid">
             <div>
                 <a class="brand" href="#/">
-                    <span class="brand-mark" data-brand-logo aria-hidden="true">N</span>
-                    <span class="brand-name" data-brand-name>Nova<em>Cart</em></span>
+                    <span class="brand-mark" data-brand-logo aria-hidden="true"></span>
+                    <span class="brand-name" data-brand-name></span>
                 </a>
                 <p class="footer-blurb" data-store-blurb>A modern shopping experience built for speed. Browse curated
                     products across every category, with transparent pricing and delivery you can track.</p>
@@ -472,7 +483,7 @@
             </div>
         </div>
         <div class="shell footer-base">
-            <p>&copy; <span data-year></span> DolphinMore. All rights reserved.</p>
+            <p>&copy; <span data-year></span> <span data-store-name></span>. All rights reserved.</p>
             <p class="footer-offline" data-offline-hint hidden>
                 <svg class="icon" aria-hidden="true">
                     <use href="#i-wifi-off"></use>
@@ -548,8 +559,8 @@
                             onerror="this.src='assets/icon-192.png'">
                     </span>
                     <div class="play-head-info">
-                        <h2 class="play-app-name" id="installApkTitle">Install NovaCart</h2>
-                        <p class="play-dev" data-pwa-dev-name>NovaCart Official • Shopping</p>
+                        <h2 class="play-app-name" id="installApkTitle" data-pwa-install-title>Install app</h2>
+                        <p class="play-dev" data-pwa-dev-name></p>
                     </div>
                 </header>
 
@@ -660,14 +671,14 @@
     <script src="js/data.js"></script>
     <script src="js/backend.js"></script>
     <script src="js/store.js"></script>
-    <script src="js/ui.js"></script>
+    <script src="js/ui.js?v=2"></script>
     <script src="js/router.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="js/auth.js"></script>
     <script src="js/reviews.js"></script>
     <script src="js/views/categories.js"></script>
-    <script src="js/views/home.js"></script>
+    <script src="js/views/home.js?v=2"></script>
     <script src="js/views/product.js"></script>
     <script src="js/views/cart.js"></script>
     <script src="js/views/wishlist.js"></script>
